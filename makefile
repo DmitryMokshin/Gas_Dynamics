@@ -5,10 +5,10 @@ opt:=-O2
 source:=$(wildcard $(pattern))
    obj:=$(patsubst %.f95, %.o, $(source))
 prog: $(obj)
-	$(comp) $(opt) $^ -o $@
+	$(comp) $(opt) $^ -o $@ $(paral)
 	rm -f *.o
 %.o %.mod : %.f95
-	$(comp) -c $(opt) $<
+	$(comp) -c $(opt) $< $(paral)
 main.o : work_program.mod work_function.mod
 work_program.o : work_function.mod
 clear:

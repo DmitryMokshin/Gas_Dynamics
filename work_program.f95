@@ -1,5 +1,6 @@
 module work_program
         use :: work_function
+        use :: omp_lib
         implicit none
     contains
 
@@ -21,7 +22,7 @@ module work_program
         real(mp), dimension(0:size(rho_matrix, dim=1) - 1, 0:size(rho_matrix, dim=1) - 1) :: v_matrix_new
         real(mp), dimension(0:size(rho_matrix, dim=1) - 1, 0:size(rho_matrix, dim=1) - 1) :: eps_matrix_new
 
-        real(mp) :: t1, t2
+        real(mp) :: t1, t2, t1_test, t2_test
 
         integer :: N, k
 
@@ -33,6 +34,8 @@ module work_program
         open(15, file='internal_energy_result_matrix.dat', status='replace')
 
         call cpu_time(t1)
+
+        call omp_set_num_threads(num_of_threads)
 
         do k = 0, 1000000
             if (mod(k, 1000) == 0) then
@@ -91,6 +94,8 @@ module work_program
         real(mp) :: p_bound_l, p_bound_r, p_bound_u, p_bound_d
         real(mp) :: u_bound_l, u_bound_r, v_bound_u, v_bound_d
 
+        real(mp) :: t1_test, t2_test
+
         integer :: N, i, j
 
         N = size(u_matrix, dim=1) - 2
@@ -100,6 +105,10 @@ module work_program
         omega_matrix = internal_energy(T_matrix, R, M)
         eps_matrix = full_energy(omega_matrix, u_matrix, v_matrix)
         p_matrix = pressure(gamma, rho_matrix, omega_matrix)
+
+        !$omp parallel default(shared)
+
+        !$omp do
 
         do i = 1, N
             do j = 1, N
@@ -123,16 +132,35 @@ module work_program
             end do
         end do
 
+        !$omp end do
+
+        !$omp end parallel
+
         call boundary_conditions(u_tilde_matrix, v_tilde_matrix, rho_matrix, T_matrix)
 
-        eps_tilde_matrix(1:N, N + 1) = (gamma - 1.0_mp) * rho_matrix(1:N, N + 1) * T_matrix(1:N, N + 1) + &
-                & (u_matrix(1:N, N + 1) ** 2.0_mp + v_matrix(1:N, N + 1) ** 2.0_mp) / 2.0_mp
-        eps_tilde_matrix(N + 1, 1:N) = (gamma - 1.0_mp) * rho_matrix(N + 1, 1:N) * T_matrix(N + 1, 1:N) + &
-                & (u_matrix(N + 1, 1:N) ** 2.0_mp + v_matrix(N + 1, 1:N) ** 2.0_mp) / 2.0_mp
-        eps_tilde_matrix(1:N, 0) = (gamma - 1.0_mp) * rho_matrix(1:N, 0) * T_matrix(1:N, 0) + &
-                & (u_matrix(1:N, 0) ** 2.0_mp + v_matrix(1:N, 0) ** 2.0_mp) / 2.0_mp
-        eps_tilde_matrix(0, 1:N) = (gamma - 1.0_mp) * rho_matrix(0, 1:N) * T_matrix(0, 1:N) + &
-                & (u_matrix(0, 1:N) ** 2.0_mp + v_matrix(0, 1:N) ** 2.0_mp) / 2.0_mp
+        !$omp parallel default(shared)
+
+        !$omp do
+
+        do i = 1, N
+
+            eps_tilde_matrix(i, N + 1) = (gamma - 1.0_mp) * rho_matrix(i, N + 1) * T_matrix(i, N + 1) + &
+                    & (u_matrix(i, N + 1) ** 2.0_mp + v_matrix(i, N + 1) ** 2.0_mp) / 2.0_mp
+
+            eps_tilde_matrix(N + 1, i) = (gamma - 1.0_mp) * rho_matrix(N + 1, i) * T_matrix(N + 1, i) + &
+                    & (u_matrix(N + 1, i) ** 2.0_mp + v_matrix(N + 1, i) ** 2.0_mp) / 2.0_mp
+
+            eps_tilde_matrix(i, 0) = (gamma - 1.0_mp) * rho_matrix(i, 0) * T_matrix(i, 0) + &
+                    & (u_matrix(i, 0) ** 2.0_mp + v_matrix(i, 0) ** 2.0_mp) / 2.0_mp
+
+            eps_tilde_matrix(0, i) = (gamma - 1.0_mp) * rho_matrix(0, i) * T_matrix(0, i) + &
+                    & (u_matrix(0, i) ** 2.0_mp + v_matrix(0, i) ** 2.0_mp) / 2.0_mp
+
+        end do
+
+        !$omp end do
+
+        !$omp end parallel
 
     end subroutine Eulerian_stage
 
@@ -152,6 +180,10 @@ module work_program
 
         N = size(rho_matrix, dim=1) - 2
 
+        !$omp parallel default(shared)
+
+        !$omp do
+
         do i = 1, N
             do j = 1, N
 
@@ -161,11 +193,19 @@ module work_program
             end do
         end do
 
+        !$omp end do
+
+        !$omp end parallel
+
         Pi_r = 0.0_mp
         Pi_u = 0.0_mp
 
         u_tilde_matrix_r = 0.0_mp
         v_tilde_matrix_u = 0.0_mp
+
+        !$omp parallel default(shared)
+
+        !$omp do
 
         do i = 1, N
             do j = 1, N
@@ -201,6 +241,12 @@ module work_program
             end do
         end do
 
+        !$omp end do
+
+        !$omp barrier
+
+        !$omp do
+
         do i = 1, N
             do j = 1, N
 
@@ -212,6 +258,12 @@ module work_program
             end do
         end do
 
+        !$omp end do
+
+        !$omp barrier
+
+        !$omp do
+
         do i = 1, N
             do j = 1, N
 
@@ -220,6 +272,10 @@ module work_program
 
             end do
         end do
+
+        !$omp end do
+
+        !$omp end parallel
 
     end subroutine mass_transport
 
@@ -238,6 +294,10 @@ module work_program
 
         f_matrix_u = 0.0_mp
         f_matrix_r = 0.0_mp
+
+        !$omp parallel default(shared)
+
+        !$omp do
 
         do i = 1, N
             do j = 1, N
@@ -261,6 +321,12 @@ module work_program
             end do
         end do
 
+        !$omp end do
+
+        !$omp barrier
+
+        !$omp do
+
         do i = 1, N
             do j = 1, N
 
@@ -272,6 +338,10 @@ module work_program
 
             end do
         end do
+
+        !$omp end do
+
+        !$omp end parallel
 
     end subroutine gas_param_transport
 

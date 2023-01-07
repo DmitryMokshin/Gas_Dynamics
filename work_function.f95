@@ -1,6 +1,7 @@
 module work_function
+    use :: omp_lib
     implicit none
-        integer, parameter :: mp = 8
+        integer, parameter :: mp = 8, num_of_threads = 6
         real(mp), parameter :: bound_temperature = 200.0
     contains
 
@@ -74,33 +75,32 @@ module work_function
 
         N = size(u_matrix, dim=1) - 2
 
+        !$omp parallel default(shared)
+        !$omp do
         do i = 1, N
             u_matrix(i, N + 1) = u_matrix(i, N)
             v_matrix(i, N + 1) = -v_matrix(i, N)
             rho_matrix(i, N + 1) = rho_matrix(i, N)
             T_matrix(i, N + 1) = bound_temperature
-        end do
 
-        do i = 1, N
             u_matrix(N + 1, i) = -u_matrix(N, i)
             v_matrix(N + 1, i) = v_matrix(N, i)
             rho_matrix(N + 1, i) = rho_matrix(N, i)
             T_matrix(N + 1, i) = bound_temperature
-        end do
 
-        do i = 1, N
             u_matrix(i, 0) = u_matrix(i, 1)
             v_matrix(i, 0) = -v_matrix(i, 1)
             rho_matrix(i, 0) = rho_matrix(i, 1)
             T_matrix(i, 0) = bound_temperature
-        end do
 
-        do i = 1, N
             u_matrix(0, i) = -u_matrix(1, i)
             v_matrix(0, i) = v_matrix(1, i)
             rho_matrix(0, i) = rho_matrix(1, i)
             T_matrix(0, i) = bound_temperature
         end do
+        !$omp end do
+
+        !$omp end parallel
 
     end subroutine boundary_conditions
 

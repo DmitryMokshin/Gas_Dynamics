@@ -6,12 +6,12 @@ module work_program
     subroutine method_Davydov_Belotserkovsky(gamma, g, R, M, h, tau, u_matrix, v_matrix, T_matrix, rho_matrix)
         real(mp), intent(in) :: gamma, g, R, M, h, tau
         real(mp), intent(inout), dimension(0:, 0:) :: u_matrix, v_matrix, rho_matrix
-        real(mp), intent(inout), dimension(1:, 1:) :: T_matrix
+        real(mp), intent(inout), dimension(0:, 0:) :: T_matrix
 
         real(mp), dimension(0:size(u_matrix, dim=1) - 1, 0:size(u_matrix, dim=1) - 1) :: &
         & u_tilde_matrix, v_tilde_matrix, eps_tilde_matrix
 
-        real(mp), dimension(1:size(rho_matrix, dim=1) - 2, 1:size(rho_matrix, dim=1) - 2) :: omega_matrix
+        real(mp), dimension(0:size(rho_matrix, dim=1) - 1, 0:size(rho_matrix, dim=1) - 1) :: omega_matrix
 
         integer, dimension(1:size(rho_matrix, dim=1) - 2, 1:size(rho_matrix, dim=1) - 2) :: s_r, s_u
         real(mp), dimension(0:size(rho_matrix, dim=1) - 2, 0:size(rho_matrix, dim=1) - 2) :: Pi_r, Pi_u
@@ -81,14 +81,13 @@ module work_program
     subroutine Eulerian_stage(gamma, g, R, M, h, tau, u_matrix, v_matrix, T_matrix, rho_matrix, &
         & u_tilde_matrix, v_tilde_matrix, eps_tilde_matrix)
         real(mp), intent(in) :: gamma, g, h, tau, R, M
-        real(mp), intent(inout), dimension(0:, 0:) :: u_matrix, v_matrix, rho_matrix
-        real(mp), intent(in), dimension(1:, 1:) :: T_matrix
+        real(mp), intent(inout), dimension(0:, 0:) :: u_matrix, v_matrix, rho_matrix, T_matrix
 
         real(mp), intent(out), dimension(0:size(u_matrix, dim=1) - 1, 0:size(u_matrix, dim=1) - 1) :: &
         & u_tilde_matrix, v_tilde_matrix, eps_tilde_matrix
 
         real(mp), dimension(0:size(u_matrix, dim=1) - 1, 0:size(u_matrix, dim=1) - 1) :: p_matrix, eps_matrix
-        real(mp), dimension(1:size(u_matrix, dim=1) - 2, 1:size(u_matrix, dim=1) - 2) :: omega_matrix
+        real(mp), dimension(0:size(u_matrix, dim=1) - 1, 0:size(u_matrix, dim=1) - 1) :: omega_matrix
         real(mp) :: p_bound_l, p_bound_r, p_bound_u, p_bound_d
         real(mp) :: u_bound_l, u_bound_r, v_bound_u, v_bound_d
 
@@ -96,11 +95,11 @@ module work_program
 
         N = size(u_matrix, dim=1) - 2
 
-        omega_matrix = internal_energy(T_matrix, R, M)
-        eps_matrix(1:N, 1:N) = full_energy(omega_matrix, u_matrix, v_matrix)
-        p_matrix(1:N, 1:N) = pressure(gamma, rho_matrix, omega_matrix)
+        call boundary_conditions(u_matrix, v_matrix, rho_matrix, T_matrix)
 
-        call boundary_conditions(u_matrix, v_matrix, eps_matrix, rho_matrix, p_matrix)
+        omega_matrix = internal_energy(T_matrix, R, M)
+        eps_matrix = full_energy(omega_matrix, u_matrix, v_matrix)
+        p_matrix = pressure(gamma, rho_matrix, omega_matrix)
 
         do i = 1, N
             do j = 1, N
@@ -124,7 +123,16 @@ module work_program
             end do
         end do
 
-        call boundary_conditions(u_tilde_matrix, v_tilde_matrix, eps_tilde_matrix, rho_matrix, p_matrix)
+        call boundary_conditions(u_tilde_matrix, v_tilde_matrix, rho_matrix, T_matrix)
+
+        eps_tilde_matrix(1:N, N + 1) = (gamma - 1.0_mp) * rho_matrix(1:N, N + 1) * T_matrix(1:N, N + 1) + &
+                & (u_matrix(1:N, N + 1) ** 2.0_mp + v_matrix(1:N, N + 1) ** 2.0_mp) / 2.0_mp
+        eps_tilde_matrix(N + 1, 1:N) = (gamma - 1.0_mp) * rho_matrix(N + 1, 1:N) * T_matrix(N + 1, 1:N) + &
+                & (u_matrix(N + 1, 1:N) ** 2.0_mp + v_matrix(N + 1, 1:N) ** 2.0_mp) / 2.0_mp
+        eps_tilde_matrix(1:N, 0) = (gamma - 1.0_mp) * rho_matrix(1:N, 0) * T_matrix(1:N, 0) + &
+                & (u_matrix(1:N, 0) ** 2.0_mp + v_matrix(1:N, 0) ** 2.0_mp) / 2.0_mp
+        eps_tilde_matrix(0, 1:N) = (gamma - 1.0_mp) * rho_matrix(0, 1:N) * T_matrix(0, 1:N) + &
+                & (u_matrix(0, 1:N) ** 2.0_mp + v_matrix(0, 1:N) ** 2.0_mp) / 2.0_mp
 
     end subroutine Eulerian_stage
 

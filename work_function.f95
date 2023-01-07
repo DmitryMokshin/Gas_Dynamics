@@ -1,6 +1,7 @@
 module work_function
     implicit none
         integer, parameter :: mp = 8
+        real(mp), parameter :: bound_temperature = 200.0
     contains
 
     function read_matrix(N, file_name) result(input_matrix)
@@ -34,40 +35,40 @@ module work_function
 
 
     function internal_energy(T_matrix, R, M) result(omega_matrix)
-        real(mp), dimension(:, :) :: T_matrix
+        real(mp), dimension(0:, 0:) :: T_matrix
         real(mp) :: R, M
-        real(mp), dimension(1:size(T_matrix, dim=1), 1:size(T_matrix, dim=1)) :: omega_matrix
+        real(mp), dimension(0:size(T_matrix, dim=1) - 1, 0:size(T_matrix, dim=1) - 1) :: omega_matrix
 
         omega_matrix = 3.0_mp / 2.0_mp * R / M * T_matrix
 
     end function internal_energy
 
     function full_energy(omega_matrix, u_matrix, v_matrix) result(eps_matrix)
-        real(mp), dimension(1:, 1:) :: omega_matrix
+        real(mp), dimension(0:, 0:) :: omega_matrix
         real(mp), dimension(0:, 0:) :: u_matrix, v_matrix
-        real(mp), dimension(1:size(u_matrix, dim=1) - 2, 1:size(u_matrix, dim=1) - 2) :: eps_matrix
+        real(mp), dimension(0:size(u_matrix, dim=1) - 1, 0:size(u_matrix, dim=1) - 1) :: eps_matrix
         integer :: N
 
         N = size(u_matrix, dim=1) - 2
-        eps_matrix = omega_matrix + (u_matrix(1:N, 1:N) ** 2.0_mp + v_matrix(1:N, 1:N) ** 2.0_mp) / 2.0_mp
+        eps_matrix = omega_matrix + (u_matrix ** 2.0_mp + v_matrix ** 2.0_mp) / 2.0_mp
 
     end function full_energy
 
     function pressure(gamma, rho_matrix, omega_matrix) result(p_matrix)
         real(mp) :: gamma
         real(mp), dimension(0:, 0:) :: rho_matrix
-        real(mp), dimension(1:, 1:) :: omega_matrix
-        real(mp), dimension(1:size(rho_matrix, dim=1) - 2, 1:size(rho_matrix, dim=1) - 2) :: p_matrix
+        real(mp), dimension(0:, 0:) :: omega_matrix
+        real(mp), dimension(0:size(rho_matrix, dim=1) - 1, 0:size(rho_matrix, dim=1) - 1) :: p_matrix
         integer :: N
 
         N = size(rho_matrix, dim=1) - 2
 
-        p_matrix = (gamma - 1.0_mp) * rho_matrix(1:N, 1:N) * omega_matrix(1:N, 1:N)
+        p_matrix = (gamma - 1.0_mp) * rho_matrix * omega_matrix
 
     end function pressure
 
-    subroutine boundary_conditions(u_matrix, v_matrix, eps_matrix, rho_matrix, p_matrix)
-        real(mp), dimension(0:, 0:), intent(inout) :: u_matrix, v_matrix, eps_matrix, rho_matrix, p_matrix
+    subroutine boundary_conditions(u_matrix, v_matrix, rho_matrix, T_matrix)
+        real(mp), dimension(0:, 0:), intent(inout) :: u_matrix, v_matrix, rho_matrix, T_matrix
 
         integer :: N, i
 
@@ -76,33 +77,29 @@ module work_function
         do i = 1, N
             u_matrix(i, N + 1) = u_matrix(i, N)
             v_matrix(i, N + 1) = -v_matrix(i, N)
-            eps_matrix(i, N + 1) = eps_matrix(i, N)
             rho_matrix(i, N + 1) = rho_matrix(i, N)
-            p_matrix(i, N + 1) = p_matrix(i, N)
+            T_matrix(i, N + 1) = bound_temperature
         end do
 
         do i = 1, N
             u_matrix(N + 1, i) = -u_matrix(N, i)
             v_matrix(N + 1, i) = v_matrix(N, i)
-            eps_matrix(N + 1, i) = eps_matrix(N, i)
             rho_matrix(N + 1, i) = rho_matrix(N, i)
-            p_matrix(N + 1, i) = p_matrix(N, i)
+            T_matrix(N + 1, i) = bound_temperature
         end do
 
         do i = 1, N
             u_matrix(i, 0) = u_matrix(i, 1)
             v_matrix(i, 0) = -v_matrix(i, 1)
-            eps_matrix(i, 0) = eps_matrix(i, 1)
             rho_matrix(i, 0) = rho_matrix(i, 1)
-            p_matrix(i, 0) = p_matrix(i, 1)
+            T_matrix(i, 0) = bound_temperature
         end do
 
         do i = 1, N
             u_matrix(0, i) = -u_matrix(1, i)
             v_matrix(0, i) = v_matrix(1, i)
-            eps_matrix(0, i) = eps_matrix(1, i)
             rho_matrix(0, i) = rho_matrix(1, i)
-            p_matrix(0, i) = p_matrix(1, i)
+            T_matrix(0, i) = bound_temperature
         end do
 
     end subroutine boundary_conditions

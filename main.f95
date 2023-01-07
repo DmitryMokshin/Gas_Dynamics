@@ -20,9 +20,14 @@ program main
 
     close(11)
 
-    allocate(T_matrix(1:N, 1:N), u_matrix(0:N+1, 0:N+1), v_matrix(0:N+1, 0:N+1), rho_matrix(0:N+1, 0:N+1))
+    allocate(T_matrix(0:N + 1, 0:N + 1), u_matrix(0:N+1, 0:N+1), v_matrix(0:N+1, 0:N+1), rho_matrix(0:N+1, 0:N+1))
 
-    T_matrix = read_matrix(N, 't_matrix.dat')
+    T_matrix = 0.0_mp
+    u_matrix = 0.0_mp
+    v_matrix = 0.0_mp
+    rho_matrix = 0.0_mp
+
+    T_matrix(1:N, 1:N) = read_matrix(N, 't_matrix.dat')
     u_matrix(1:N, 1:N) = read_matrix(N, 'u_matrix.dat')
     v_matrix(1:N, 1:N) = read_matrix(N, 'v_matrix.dat')
     rho_matrix(1:N, 1:N) = read_matrix(N, 'r_matrix.dat')
